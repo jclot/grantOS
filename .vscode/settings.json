@@ -2,6 +2,11 @@
     "files.associations": {
         "*.embeddedhtml": "html",
         "stdint.h": "c",
-        "print.h": "c"
-    }
+        "print.h": "c",
+        "memory.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.compilerPath": "",
+    "C_Cpp.default.intelliSenseMode": "gcc-x64"
 }
