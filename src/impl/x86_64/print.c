@@ -184,7 +184,7 @@ void handle_backspace()
         {
             row--;
             col = NUM_COLS - 1;
-            // scan backwards to find last non-space character
+            // Scan backwards to find last non-space character
         }
     }
     else
@@ -321,6 +321,22 @@ void print_number_kb(uint64_t bytes)
         print_char(buf[i]);
     }
     print_str(" KB");
+}
+
+void print_hex(uint32_t value)
+{
+    const char hex_chars[] = "0123456789ABCDEF";
+    char buffer[9]; // 8 digits + null terminator
+    buffer[8] = '\0';
+
+    // Fill buffer with hex representation
+    for (int i = 7; i >= 0; i--)
+    {
+        buffer[i] = hex_chars[value & 0xF];
+        value >>= 4;
+    }
+
+    print_str(buffer);
 }
 
 void print_memory_info()

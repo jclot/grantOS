@@ -30,5 +30,6 @@ void print_str_color(const char *string, uint8_t foreground, uint8_t background)
 void print_set_color(uint8_t foreground, uint8_t background);
 void print_number_kb(uint64_t bytes);
 void print_pinned_header();
+void print_hex(uint32_t value);
 void print_memory_info();
 void preserve_header();

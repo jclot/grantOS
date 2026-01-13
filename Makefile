@@ -1,38 +1,16 @@
-kernel_source_files := $(shell find src/impl/kernel -name '*.c')
-kernel_object_files := $(patsubst src/impl/kernel/%.c, build/kernel/%.o, $(kernel_source_files))
+# ================================================================
+# Makefile - Kernel x86_64
+# ================================================================
 
-utils_source_files := $(shell find src/impl/utils -name '*.c')
-utils_object_files := $(patsubst src/impl/utils/%.c, build/utils/%.o, $(utils_source_files))
+# Upload sources
+include makefiles/00-config.mk
+include makefiles/10-toolchain.mk
+include makefiles/20-sources.mk
+include makefiles/30-objects.mk
+include makefiles/40-rules.mk
+include makefiles/50-targets.mk
+include makefiles/60-install.mk
+include makefiles/70-utils.mk
 
-x86_64_c_source_files := $(shell find src/impl/x86_64 -name '*.c')
-x86_64_c_object_files := $(patsubst src/impl/x86_64/%.c, build/x86_64/%.o, $(x86_64_c_source_files))
-
-x86_64_asm_source_files := $(shell find src/impl/x86_64 -name '*.asm')
-x86_64_asm_object_files := $(patsubst src/impl/x86_64/%.asm, build/x86_64/%.o, $(x86_64_asm_source_files))
-
-x86_64_object_files := $(x86_64_c_object_files) $(x86_64_asm_object_files)
-
-INCLUDES := -I src/intf -I src/impl/kernel/memory
-
-$(kernel_object_files): build/kernel/%.o : src/impl/kernel/%.c
-	mkdir -p $(dir $@) && \
-	x86_64-elf-gcc -c -I src/intf -ffreestanding $(patsubst build/kernel/%.o, src/impl/kernel/%.c, $@) -o $@
-
-$(utils_object_files): build/utils/%.o : src/impl/utils/%.c
-	mkdir -p $(dir $@) && \
-	x86_64-elf-gcc -c -I src/intf -ffreestanding $(patsubst build/utils/%.o, src/impl/utils/%.c, $@) -o $@
-
-$(x86_64_c_object_files): build/x86_64/%.o : src/impl/x86_64/%.c
-	mkdir -p $(dir $@) && \
-	x86_64-elf-gcc -c -I src/intf -ffreestanding $(patsubst build/x86_64/%.o, src/impl/x86_64/%.c, $@) -o $@
-
-$(x86_64_asm_object_files): build/x86_64/%.o : src/impl/x86_64/%.asm
-	mkdir -p $(dir $@) && \
-	nasm -f elf64 $(patsubst build/x86_64/%.o, src/impl/x86_64/%.asm, $@) -o $@
-
-.PHONY: build-x86_64
-build-x86_64: $(kernel_object_files) $(utils_object_files) $(x86_64_object_files)
-	mkdir -p dist/x86_64 && \
-	x86_64-elf-ld -n -o dist/x86_64/kernel.bin -T targets/x86_64/linker.ld $(kernel_object_files) $(utils_object_files) $(x86_64_object_files) && \
-	cp dist/x86_64/kernel.bin targets/x86_64/iso/boot/kernel.bin && \
-	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso targets/x86_64/iso
+# Target default
+.DEFAULT_GOAL := build-x86_64

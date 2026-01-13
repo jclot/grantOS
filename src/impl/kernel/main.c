@@ -1,5 +1,7 @@
 #include "print.h"
-#include "keyboard.h"
+#include "drivers/keyboard.h"
+#include "drivers/driver_manager.h"
+#include "drivers/keyboard/keyboard_driver.h"
 #include "string.h"
 #include "memory/memory.h"
 #include "io.h"
@@ -44,6 +46,8 @@ static void process_command(const char *input_buffer)
         print_str_color("  help    - Show this help message\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
         print_str_color("  meminfo - Show memory information\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
         print_str_color("  version - Show OS version\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+        print_str_color("  drivers   - List loaded drivers\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+        print_str_color("  drvinfo   - Show driver information\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
         print_str_color("  exit    - Exit the console\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
     }
     else if (str_compare(input_buffer, "meminfo") == 0)
@@ -54,12 +58,81 @@ static void process_command(const char *input_buffer)
     {
         print_str("GrantOS Version 1.0.0\n");
     }
+    else if (str_compare(input_buffer, "drivers") == 0)
+    {
+        print_str_color("Loaded Drivers:\n", PRINT_COLOR_LIGHT_CYAN, PRINT_COLOR_BLACK);
+        driver_list_all();
+    }
+    else if (str_compare(input_buffer, "drvinfo") == 0)
+    {
+        // Show detailed info about the keyboard driver as an example
+        driver_module_t *kbd_driver = driver_get("keyboard");
+        if (kbd_driver)
+        {
+            print_str_color("Keyboard Driver Information:\n", PRINT_COLOR_LIGHT_CYAN, PRINT_COLOR_BLACK);
+            print_str("  Name: ");
+            print_str(kbd_driver->name);
+            print_char('\n');
+            print_str("  Version: ");
+            print_str(kbd_driver->version);
+            print_char('\n');
+            print_str("  Type: INPUT (0x");
+            print_hex(kbd_driver->type);
+            print_str(")\n");
+            print_str("  Status: ");
+
+            switch (kbd_driver->status)
+            {
+            case DRIVER_STATUS_UNLOADED:
+                print_str_color("UNLOADED", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+                break;
+            case DRIVER_STATUS_LOADED:
+                print_str_color("LOADED", PRINT_COLOR_YELLOW, PRINT_COLOR_BLACK);
+                break;
+            case DRIVER_STATUS_INITIALIZED:
+                print_str_color("INITIALIZED", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+                break;
+            case DRIVER_STATUS_ERROR:
+                print_str_color("ERROR", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+                break;
+            default:
+                print_str("UNKNOWN");
+            }
+            print_char('\n');
+
+            if (kbd_driver->driver_ops)
+            {
+                keyboard_ops_t *ops = (keyboard_ops_t *)kbd_driver->driver_ops;
+                if (ops->get_status)
+                {
+                    int kbd_status = ops->get_status();
+                    print_str("  Hardware Status: ");
+                    if (kbd_status)
+                    {
+                        print_str_color("READY", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+                    }
+                    else
+                    {
+                        print_str_color("NOT READY", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+                    }
+                    print_char('\n');
+                }
+            }
+        }
+        else
+        {
+            print_str_color("Keyboard driver not found!\n", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+        }
+    }
     else if (str_compare(input_buffer, "06/10/2006") == 0)
     {
         print_str("I \x03 you!\n");
     }
     else if (str_compare(input_buffer, "exit") == 0)
     {
+        // Cleanup and exit
+        driver_cleanup("keyboard");
+
         print_str("Exiting console...\n");
         print_str("System will shutdown in QEMU...\n");
         qemu_shutdown();
@@ -72,12 +145,53 @@ static void process_command(const char *input_buffer)
     }
 }
 
+static void show_system_startup_info(void)
+{
+    print_str_color("\nGrantOS Kernel Starting...\n", PRINT_COLOR_LIGHT_CYAN, PRINT_COLOR_BLACK);
+    print_str("Initializing memory system... ");
+    memory_init(MEMORY_SIZE);
+    print_str_color("[OK]\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+
+    print_str("Initializing driver manager... ");
+    if (driver_manager_init() == 0)
+    {
+        print_str_color("[OK]\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+    }
+    else
+    {
+        print_str_color("[FAILED]\n", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+        return;
+    }
+
+    print_str("Registering keyboard driver... ");
+    if (keyboard_driver_register() == 0)
+    {
+        print_str_color("[OK]\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+    }
+    else
+    {
+        print_str_color("[FAILED]\n", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+        return;
+    }
+
+    print_str("Initializing keyboard driver... ");
+    if (driver_initialize("keyboard") == 0)
+    {
+        print_str_color("[OK]\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+    }
+    else
+    {
+        print_str_color("[FAILED]\n", PRINT_COLOR_LIGHT_RED, PRINT_COLOR_BLACK);
+        return;
+    }
+
+    print_str_color("System initialization complete!\n\n", PRINT_COLOR_LIGHT_GREEN, PRINT_COLOR_BLACK);
+}
+
 void kernel_main()
 {
-    memory_init(MEMORY_SIZE);
-
-    print_clear();
     print_pinned_header();
+    show_system_startup_info();
     print_str(PROMPT);
 
     char input_buffer[MAX_INPUT_LEN];
